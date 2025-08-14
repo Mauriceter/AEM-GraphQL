@@ -13,8 +13,10 @@ def generate_scalar_value(name):
   "Float": 1.0,
   "ID": '123456789012',
   "Int": 1,
-  "String": "' or 1 ",
+  "String": "123456",
   "Object": {'Key': 'pentest'},
+  "DateTime": '11-11-1111',
+
 
     }.get(name, None)
 
@@ -166,7 +168,7 @@ def build_minimal_selection_set(graphql_type, type_map):
         return ""
 
     # preferred scalar field names
-    preferred = ["status", "message", "data", "id", "name", "title"]
+    preferred = ["message", "status", "data", "id", "name", "title"]
     for pref in preferred:
         for f in type_def["fields"]:
             if f["name"] == pref and is_scalar_or_enum(f["type"], type_map):
@@ -361,12 +363,13 @@ def perform_introspection(endpoint, auth_token, output_file=None):
             types_count = len([t for t in schema["types"] if not t["name"].startswith("__")])
             query_fields = len(schema.get("queryType", {}).get("name", "")) if schema.get("queryType") else 0
             mutation_fields = len(schema.get("mutationType", {}).get("name", "")) if schema.get("mutationType") else 0
+            subscription_fields = len(schema.get("subscriptionType", {}).get("name", "")) if schema.get("subscriptionType") else 0
             
             print(f"{blue('📊 Schema statistics:')}")
             print(f"  - Custom types: {types_count}")
             print(f"  - Has queries: {'Yes -> '+ str(query_fields) + ' queries' if schema.get('queryType') else 'No'}")
             print(f"  - Has mutations: {'Yes -> '+ str(mutation_fields) + ' mutations' if schema.get('mutationType') else 'No'}")
-            print(f"  - Has subscriptions: {'Yes' if schema.get('subscriptionType') else 'No'}")
+            print(f"  - Has subscriptions: {'Yes -> '+ str(subscription_fields) + ' subscriptions' if schema.get('subscriptionType') else 'No'}")
             
             return True, output_file
             
