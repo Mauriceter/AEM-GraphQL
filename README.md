@@ -90,7 +90,7 @@ def generate_scalar_value(name):
 ```
 └─$ python3 AEM-GraphQL.py -s schema.json -u https://endpoint.com/graphql -ah "Bearer blabla" -o authorization_result.csv
 
-=== Testing Querys (full_output=False) ===
+=== Testing Queries (full_output=False) ===
 [200] query `getUser` -> ❌ FAIL
   ↳ Error: Second Factor is not yet authenticated
 [200] query `getUsers` -> ❌ FAIL
