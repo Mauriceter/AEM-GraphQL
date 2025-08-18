@@ -104,7 +104,7 @@ def generate_scalar_value(name):
 
 # Additional, yet important notes:
 
-* Use **-q "getUsers"** to only test one query or mutations.
+* Use **-q "getUsers"** to only test one query or mutations. Add **-c** to get the curl request instead.
 * **⚠️ Authorization discovered are not perfect**, use **-v r** to print the full response or check the csv file.
 * Generated queries and mutations use only required parameters to reduce the risque of errors in the query. This mean that if you use the tool to test a payload like an SLQi on all queries and mutations some parameters won't be tested
 * Generated queries and mutations return by default only one scalar to reduce the risk of errors. Use **-fo** to return the full selection (some debugging still needed for deeply nested selections and when several types can be returned)
@@ -113,6 +113,7 @@ def generate_scalar_value(name):
 # TODO
 
 * Add Subscription queries
+* Correct number of query and mutation
 * Better handling of --full-output
 * Add option to test all parameters
 * Adding parameter to indicate this error means a success and vice versa

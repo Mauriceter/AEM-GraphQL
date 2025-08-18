@@ -3,6 +3,7 @@ import argparse
 import requests
 import os
 import csv
+import shlex
 
 
 ##### UPDATE DEFAULT VALUES AS NEEDED #############
@@ -233,16 +234,37 @@ def get_graphql_type_string(arg_type):
     else:
         return name
 
-def run_graphql(endpoint, auth_token, query, variables):
+def run_graphql(endpoint, auth_token, query, variables,curl):
     headers = {
         "Authorization": auth_token,
         "Content-Type": "application/json"
     }
-    response = requests.post(endpoint, headers=headers, json={
+
+    payload = {
         "query": query,
         "variables": variables
-    })
-    return response.status_code, response.json()
+    }
+
+    if not curl:
+        response = requests.post(endpoint, headers=headers, json=payload)
+        return response.status_code, response.json()
+
+    else:
+        # Build curl equivalent
+        curl_parts = [
+            "curl",
+            "-X", "POST",
+            shlex.quote(endpoint),
+            "-H", shlex.quote(f"{"Authorization: "+auth_token if auth_token else ""}"),
+            "-H", shlex.quote("Content-Type: application/json"),
+            "-d", shlex.quote(json.dumps(payload))
+        ]
+        curl_cmd = " ".join(curl_parts)
+        print(f"\n🔹 CURL Equivalent:\n{curl_cmd}\n")
+        exit(0)
+
+
+    
 
 def perform_introspection(endpoint, auth_token, output_file=None):
     """Perform GraphQL introspection query and save schema to JSON file"""
@@ -410,7 +432,7 @@ def list_scalars_mode(schema_file):
 
 
 
-def test_operations(schema, auth_token, endpoint, op_type="query", verbose_options=None, full_output=False, query_name=None, output='result.csv'):
+def test_operations(schema, auth_token, endpoint, op_type="query", verbose_options=None, full_output=False, query_name=None, output='result.csv', curl=False):
     if verbose_options is None:
         verbose_options = {'query': False, 'variables': False, 'response': False}
 
@@ -441,7 +463,7 @@ def test_operations(schema, auth_token, endpoint, op_type="query", verbose_optio
         variables = None
         try:
             query, variables = build_query_string(field, type_map, op_type, full_output)
-            status, response = run_graphql(endpoint, auth_token, query, variables)
+            status, response = run_graphql(endpoint, auth_token, query, variables, curl)
 
             # default (minimal) printing: just status line (still keep details on failure)
             if status == 200 and response and "errors" not in response:
@@ -486,7 +508,7 @@ def test_operations(schema, auth_token, endpoint, op_type="query", verbose_optio
             print(red(f"❌ Exception testing `{field['name']}`: {e}"))
             log_to_csv(op_type, field['name'], "N/A", "EXCEPTION", str(e), q_for_log, v_for_log, "", filepath=output)
 
-def main(schema_file, auth_header, endpoint, verbose_str=None, introspection_mode=False, output=None, list_scalars=False, full_output=False, query_name=None):
+def main(schema_file, auth_header, endpoint, verbose_str=None, introspection_mode=False, output=None, list_scalars=False, full_output=False, query_name=None, curl=False):
     # Introspection mode - generate schema JSON from GraphQL endpoint
     if introspection_mode:
         success, output_file = perform_introspection(endpoint, auth_header, output)
@@ -504,8 +526,8 @@ def main(schema_file, auth_header, endpoint, verbose_str=None, introspection_mod
     init_csv(output)
     schema = load_schema(schema_file)
     verbose_options = parse_verbose_options(verbose_str)
-    test_operations(schema, auth_header, endpoint, op_type="query", verbose_options=verbose_options, full_output=full_output, query_name=query_name, output=output)
-    test_operations(schema, auth_header, endpoint, op_type="mutation", verbose_options=verbose_options, full_output=full_output, query_name=query_name, output=output)
+    test_operations(schema, auth_header, endpoint, op_type="query", verbose_options=verbose_options, full_output=full_output, query_name=query_name, output=output, curl=curl)
+    test_operations(schema, auth_header, endpoint, op_type="mutation", verbose_options=verbose_options, full_output=full_output, query_name=query_name, output=output, curl=curl)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="GraphQL Auth Tester")
@@ -521,11 +543,13 @@ if __name__ == "__main__":
                    help="List all scalar types from schema with suggested dummy values")
     parser.add_argument("--full-output", "-fo", action="store_true", help="Request full selection sets (default: minimal).")
     parser.add_argument("--query", "-q", help="Only run a specific query/mutation by name")
+    
 
     #For introspection
     group.add_argument("--introspect", "-i", action="store_true", 
                        help="Generate schema JSON file from GraphQL introspection")
     
+    parser.add_argument("--curl", "-c", action="store_true", help="Output the curl command instead of making the request")
     parser.add_argument("--output", "-o", 
                         help="Output filename for json schema in introspection mode and csv in testing mode")
     
@@ -543,6 +567,10 @@ if __name__ == "__main__":
         print(red("Missing endpoint (-u) to test"))
         exit(1)
     
+    if args.curl and not args.query:
+        print(red("--curl parameter need a specified query (-q)"))
+        exit(1)
+    
 
     main(args.schema, args.auth_header, args.url, args.verbose, 
-         args.introspect, output,args.list_scalars,args.full_output, args.query)
+         args.introspect, output,args.list_scalars,args.full_output, args.query, args.curl)
