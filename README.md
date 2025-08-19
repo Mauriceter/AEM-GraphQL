@@ -67,10 +67,15 @@ Copy the above lines into your generate_scalar_value dictionary as needed.
 
 This lists all scalars used by the GraphQL api, you can then choose your default values and update generate_scalar_value at the top of the script.
 
+> AEM-GraphQL attempts to match expected string format based on the name like if the argument contain `email` the string will be `a@a.com` . Additional logic can easily be added if needed.
+
 ```
 ##### UPDATE DEFAULT VALUES AS NEEDED #############
 
 def generate_scalar_value(name):
+
+  [...]
+
     return {
   "Boolean": True,
   "Float": 1.0,

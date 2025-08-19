@@ -8,18 +8,40 @@ import shlex
 
 ##### UPDATE DEFAULT VALUES AS NEEDED #############
 
-def generate_scalar_value(name):
-    return {
-  "Boolean": True,
-  "Float": 1.0,
-  "ID": '123456789012',
-  "Int": 1,
-  "String": "123456",
-  "Object": {'Key': 'pentest'},
-  "DateTime": '11-11-1111',
+def generate_scalar_value(type_name, field_name=None):
+    """
+    Generate a dummy value for a scalar, taking into account the type
+    and optionally the argument/field name (to detect special cases like email).
+    """
+    if field_name:
+        field_name_lower = field_name.lower()
+        if type_name == "String":
+            if "email" in field_name_lower:
+                return "a@a.com"
+            if "phone" in field_name_lower:
+                return "+1234567890"
+            if "url" in field_name_lower or "uri" in field_name_lower:
+                return "https://example.com"
+            if "date" in field_name_lower:
+                return "2025-01-01"
+            if "time" in field_name_lower:
+                return "12:00:00"
+            if "code" in field_name_lower:
+                return "123456"
+            if "password" in field_name_lower or "pass" in field_name_lower:
+                return "SecretPass123+"
 
-
-    }.get(name, None)
+    # Fallback to defaults based on type
+    defaults = {
+        "Boolean": True,
+        "Float": 1.0,
+        "ID": "123456789012",
+        "Int": 1,
+        "String": "example-string",
+        "Object": {"Key": "pentest"},
+        "DateTime": "2025-01-01T00:00:00Z",
+    }
+    return defaults.get(type_name, f"dummy_{type_name.lower()}")
 
 
 ####################################################
@@ -77,17 +99,17 @@ def unwrap_type(graphql_type):
         graphql_type = graphql_type["ofType"]
     return graphql_type
 
-def generate_dummy_value(arg_type, type_map):
+def generate_dummy_value(arg_type, type_map, field_name=None):
     kind = arg_type["kind"]
     name = arg_type.get("name")
     of_type = arg_type.get("ofType")
 
     if kind == "NON_NULL":
-        return generate_dummy_value(of_type, type_map)
+        return generate_dummy_value(of_type, type_map, field_name)
     elif kind == "LIST":
-        return [generate_dummy_value(of_type, type_map)]
+        return [generate_dummy_value(of_type, type_map, field_name)]
     elif kind == "SCALAR":
-        return generate_scalar_value(name)
+        return generate_scalar_value(name, field_name)
     elif kind == "ENUM":
         enum = type_map.get(name)
         if enum and enum.get("enumValues"):
@@ -100,7 +122,7 @@ def generate_dummy_value(arg_type, type_map):
         if not input_object or not input_object.get("inputFields"):
             return {}
         return {
-            f["name"]: generate_dummy_value(f["type"], type_map)
+            f["name"]: generate_dummy_value(f["type"], type_map, f["name"])
             for f in input_object["inputFields"]
         }
     else:
@@ -190,11 +212,12 @@ def build_query_string(field, type_map, op_type="query", full_output=False):
     variables = {}
 
     for arg in args:
-        # only include NON_NULL args in generated tests (same as original behavior)
+        # only include NON_NULL args in generated tests
         if arg["type"]["kind"] != "NON_NULL":
             continue
 
-        dummy_value = generate_dummy_value(arg["type"], type_map)
+        # pass the argument name into generate_dummy_value
+        dummy_value = generate_dummy_value(arg["type"], type_map, field_name=arg["name"])
         if dummy_value is not None:
             var_name = f"${arg['name']}"
             arg_defs.append(f"{var_name}: {get_graphql_type_string(arg['type'])}")
@@ -206,6 +229,7 @@ def build_query_string(field, type_map, op_type="query", full_output=False):
 
     return_type = field["type"]
 
+    # scalar returns cannot have selection sets
     if is_scalar_or_enum(return_type, type_map):
         selection = ""
     else:
