@@ -39,6 +39,8 @@ def generate_scalar_value(type_name, field_name=None):
         "Int": 1,
         "String": "example-string",
         "Object": {"Key": "pentest"},
+        "Date": "2025-01-01T00:00:00Z",
+        "Json": {},
         "DateTime": "2025-01-01T00:00:00Z",
     }
     return defaults.get(type_name, f"dummy_{type_name.lower()}")
@@ -389,7 +391,7 @@ def perform_introspection(endpoint, auth_token, output_file=None):
     print(f"{blue('🔍 Performing GraphQL introspection...')}")
     
     try:
-        status_code, response = run_graphql(endpoint, auth_token, introspection_query, {})
+        status_code, response = run_graphql(endpoint, auth_token, introspection_query, {}, curl=False)
         
         if status_code == 200 and "errors" not in response and "data" in response:
             print(green("✅ Introspection successful!"))
@@ -591,9 +593,9 @@ if __name__ == "__main__":
         print(red("Missing endpoint (-u) to test"))
         exit(1)
     
-    if args.curl and not args.query:
-        print(red("--curl parameter need a specified query (-q)"))
-        exit(1)
+    # if args.curl and not args.query:
+    #     print(red("--curl parameter need a specified query (-q)"))
+    #     exit(1)
     
 
     main(args.schema, args.auth_header, args.url, args.verbose, 
